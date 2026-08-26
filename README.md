@@ -16,6 +16,8 @@ cualquier repo:
         uses: gdberysan/.github/.github/workflows/security.yml@main
         permissions:
           contents: read
+          # gitleaks-action lee los commits del PR en eventos pull_request
+          pull-requests: read
 
 El repo consumidor con Go debe tener su propio `.golangci.yml`
 (formato v2) en la raíz.

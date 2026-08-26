@@ -71,7 +71,9 @@ jobs:
     if: needs.detectar.outputs.js == 'true'
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      # Pin a versión concreta: la deriva de :latest rompe CI de todos
+      # los consumidores sin aviso.
+      image: semgrep/semgrep:1.174.0
     steps:
       - uses: actions/checkout@v4
       # Solo rulesets JS/TS: el SAST de Go ya es gosec; dos motores
