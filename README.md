@@ -25,7 +25,7 @@ su manifiesto; todos los repos lo heredan sin tocar sus `ci.yml`.
 jobs:
   seguridad:
     name: Seguridad
-    uses: gdberysan/.github/.github/workflows/security.yml@main
+    uses: gdberysan/.github/.github/workflows/security.yml@v1
     permissions:
       contents: read
       # gitleaks-action lee los commits del PR en eventos pull_request
@@ -57,10 +57,14 @@ configurar required status checks.
 
 - `ci.yml` de este repo llama a su propio workflow en cada push (aquí solo
   corre gitleaks: no hay manifiestos de Go/JS).
-- Mientras haya pocos consumidores se consume `@main`; a partir de ~3
-  consumidores se taggea `@v1` y los bumps son deliberados.
-- Dependabot vigila las versiones de las actions de este repo — los bumps
-  aquí propagan a la CI de todos los consumidores.
+- **Versionado**: los consumidores fijan `@v1` (major que se mueve solo con
+  cambios compatibles), NO `@main` (cambia en cada commit, incluido WIP →
+  rompería la CI de todos sin aviso). `v1.0.0` es el release inmutable; `v1`
+  se avanza deliberadamente y solo para cambios retrocompatibles. Un cambio
+  que rompa compatibilidad = `v2`, y los consumidores migran a mano.
+- Las actions internas y la imagen de semgrep están fijadas por **SHA/digest**
+  (no por tag reescribible). Dependabot (github-actions) las sube leyendo el
+  comentario `# vX.Y.Z`; revisa esos PRs y luego avanza el tag `v1`.
 
 ## Contexto
 
