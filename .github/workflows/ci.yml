@@ -1,0 +1,10 @@
+# Auto-test: este repo llama a su propio workflow reutilizable en cada
+# push. Sin go.mod aquí, solo debe ejecutarse detectar + gitleaks.
+name: CI
+
+on:
+  push:
+
+jobs:
+  seguridad:
+    uses: ./.github/workflows/security.yml

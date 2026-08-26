@@ -1,0 +1,80 @@
+# Workflow reutilizable de seguridad para todos los repos de gdberysan.
+# Cada job de ecosistema se activa solo si el repo llamante tiene sus
+# ficheros de manifiesto; añadir un ecosistema nuevo = un job nuevo aquí.
+name: Seguridad
+
+on:
+  workflow_call: {}
+
+jobs:
+  detectar:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.stack.outputs.go }}
+      js: ${{ steps.stack.outputs.js }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: stack
+        run: |
+          if [ -f go.mod ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+          # package.json en la raíz o a un nivel (web/, site/…);
+          # */package.json NO matchea node_modules (los paquetes están
+          # dos niveles abajo: node_modules/<pkg>/package.json).
+          if [ -f package.json ] || compgen -G "*/package.json" > /dev/null; then
+            echo "js=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "js=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks escanea todo el historial, no solo el último commit
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  govulncheck:
+    needs: detectar
+    if: needs.detectar.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+
+  golangci-lint:
+    needs: detectar
+    if: needs.detectar.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: golangci/golangci-lint-action@v8
+
+  semgrep:
+    needs: detectar
+    if: needs.detectar.outputs.js == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # Solo rulesets JS/TS: el SAST de Go ya es gosec; dos motores
+      # sobre el mismo código = ruido (spec §8). --error hace fallar
+      # el job con hallazgos; --metrics=off evita telemetría.
+      - run: semgrep scan --config p/javascript --config p/typescript --metrics=off --error
